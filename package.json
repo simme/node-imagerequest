@@ -4,7 +4,7 @@
   "description": "Image request handler with on demand resizing using ImageMagick.",
   "version": "0.0.1",
   "repository": {
-    "url": ""
+    "url": "https://github.com/simme/node-imagerequest"
   },
   "main": "imagerequest.js",
   "dependencies": {},
