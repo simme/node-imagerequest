@@ -1,0 +1,194 @@
+<!DOCTYPE html>  <html> <head>   <title>imagerequest.js</title>   <meta http-equiv="content-type" content="text/html; charset=UTF-8">   <link rel="stylesheet" media="all" href="docco.css" /> </head> <body>   <div id="container">     <div id="background"></div>          <table cellpadding="0" cellspacing="0">       <thead>         <tr>           <th class="docs">             <h1>               imagerequest.js             </h1>           </th>           <th class="code">           </th>         </tr>       </thead>       <tbody>                               <tr id="section-1">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-1">&#182;</a>               </div>               <h1>Image Request</h1>
+
+<p>Handles serving of images and resize on demand.</p>             </td>             <td class="code">               <div class="highlight"><pre></pre></div>             </td>           </tr>                               <tr id="section-2">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-2">&#182;</a>               </div>               <h2>Dependencies</h2>             </td>             <td class="code">               <div class="highlight"><pre><span class="kd">var</span> <span class="nx">lib</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">url</span><span class="o">:</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;url&#39;</span><span class="p">),</span>
+  <span class="nx">exec</span><span class="o">:</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;child_process&#39;</span><span class="p">).</span><span class="nx">exec</span><span class="p">,</span>
+  <span class="nx">fs</span><span class="o">:</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;fs&#39;</span><span class="p">),</span>
+  <span class="nx">path</span><span class="o">:</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;path&#39;</span><span class="p">),</span>
+  <span class="nx">util</span><span class="o">:</span> <span class="nx">require</span><span class="p">(</span><span class="s1">&#39;util&#39;</span><span class="p">)</span>
+<span class="p">};</span></pre></div>             </td>           </tr>                               <tr id="section-3">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-3">&#182;</a>               </div>               <h2>Request callback</h2>
+
+<p>Use as a callback to a request. Requires two parameters to be set.</p>
+
+<p>var imagerequest = require('imagerequest');
+   app.get('images/:size/:img', imagerequest(options));</p>
+
+<p><strong>parameters</strong></p>
+
+<ul>
+<li>options</li>
+</ul>
+
+<p><strong>returns</strong></p>
+
+<ul>
+<li><p>function</p>
+
+<p>Request handler.</p></li>
+</ul>             </td>             <td class="code">               <div class="highlight"><pre><span class="nx">module</span><span class="p">.</span><span class="nx">exports</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">options</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">options</span> <span class="o">=</span> <span class="nx">options</span> <span class="o">||</span> <span class="p">{};</span>
+
+  <span class="cm">/* Require source directory. */</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">options</span><span class="p">.</span><span class="nx">src</span> <span class="o">!==</span> <span class="s1">&#39;string&#39;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">throw</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="s1">&#39;ImageRequest requires a source directory.&#39;</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="cm">/* Default dest dir to source dir. */</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">options</span><span class="p">.</span><span class="nx">dest</span> <span class="o">!==</span> <span class="s1">&#39;string&#39;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">options</span><span class="p">.</span><span class="nx">dest</span> <span class="o">=</span> <span class="nx">options</span><span class="p">.</span><span class="nx">src</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="cm">/* Set path to identify. */</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">options</span><span class="p">.</span><span class="nx">identify</span> <span class="o">!==</span> <span class="s1">&#39;string&#39;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">options</span><span class="p">.</span><span class="nx">identify</span> <span class="o">=</span> <span class="s1">&#39;identify&#39;</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="cm">/* Set path to identify. */</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">options</span><span class="p">.</span><span class="nx">imagemagick</span> <span class="o">!==</span> <span class="s1">&#39;string&#39;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">options</span><span class="p">.</span><span class="nx">identify</span> <span class="o">=</span> <span class="s1">&#39;identify&#39;</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="cm">/* Set path to convert. */</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">options</span><span class="p">.</span><span class="nx">convert</span> <span class="o">!==</span> <span class="s1">&#39;string&#39;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">options</span><span class="p">.</span><span class="nx">convert</span> <span class="o">=</span> <span class="s1">&#39;convert&#39;</span><span class="p">;</span>
+  <span class="p">}</span>
+
+  <span class="cm">/* Default sizes. */</span>
+  <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">options</span><span class="p">.</span><span class="nx">sizes</span> <span class="o">===</span> <span class="s1">&#39;undefined&#39;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">options</span><span class="p">.</span><span class="nx">sizes</span> <span class="o">=</span> <span class="p">{</span>
+      <span class="nx">square</span><span class="o">:</span> <span class="p">{</span>
+        <span class="nx">width</span><span class="o">:</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="nx">height</span><span class="o">:</span> <span class="mi">128</span><span class="p">,</span>
+        <span class="nx">maintainratio</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+        <span class="nx">allowupscale</span><span class="o">:</span> <span class="kc">false</span>
+      <span class="p">},</span>
+      <span class="nx">small</span><span class="o">:</span> <span class="p">{</span>
+        <span class="nx">width</span><span class="o">:</span> <span class="mi">180</span><span class="p">,</span>
+        <span class="nx">height</span><span class="o">:</span> <span class="mi">120</span><span class="p">,</span>
+        <span class="nx">maintainratio</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+        <span class="nx">allowupscale</span><span class="o">:</span> <span class="kc">false</span>
+      <span class="p">},</span>
+      <span class="nx">medium</span><span class="o">:</span> <span class="p">{</span>
+        <span class="nx">width</span><span class="o">:</span> <span class="mi">640</span><span class="p">,</span>
+        <span class="nx">height</span><span class="o">:</span> <span class="mi">480</span><span class="p">,</span>
+        <span class="nx">maintainratio</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+        <span class="nx">allowupscale</span><span class="o">:</span> <span class="kc">false</span>
+      <span class="p">},</span>
+      <span class="nx">large</span><span class="o">:</span> <span class="p">{</span>
+        <span class="nx">width</span><span class="o">:</span> <span class="mi">1024</span><span class="p">,</span>
+        <span class="nx">height</span><span class="o">:</span> <span class="mi">768</span><span class="p">,</span>
+        <span class="nx">maintainratio</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+        <span class="nx">allowupscale</span><span class="o">:</span> <span class="kc">false</span>
+      <span class="p">}</span>
+    <span class="p">};</span>
+  <span class="p">}</span>
+
+  <span class="cm">/* The actual request handler. */</span>
+  <span class="k">return</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">,</span> <span class="nx">next</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">req</span><span class="p">.</span><span class="nx">method</span> <span class="o">!==</span> <span class="s1">&#39;GET&#39;</span> <span class="o">&amp;&amp;</span> <span class="nx">req</span><span class="p">.</span><span class="nx">method</span> <span class="o">!==</span> <span class="s1">&#39;HEAD&#39;</span><span class="p">)</span> <span class="p">{</span> <span class="k">return</span> <span class="nx">next</span><span class="p">();</span> <span class="p">}</span>
+
+    <span class="kd">var</span> <span class="nx">size</span> <span class="o">=</span> <span class="nx">req</span><span class="p">.</span><span class="nx">params</span><span class="p">.</span><span class="nx">size</span><span class="p">;</span>
+    <span class="kd">var</span> <span class="nx">img</span>  <span class="o">=</span> <span class="nx">req</span><span class="p">.</span><span class="nx">params</span><span class="p">.</span><span class="nx">img</span><span class="p">;</span>
+    <span class="kd">var</span> <span class="nx">org</span>  <span class="o">=</span> <span class="nx">lib</span><span class="p">.</span><span class="nx">path</span><span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="nx">options</span><span class="p">.</span><span class="nx">src</span><span class="p">,</span> <span class="nx">img</span><span class="p">);</span>
+    <span class="kd">var</span> <span class="nx">path</span> <span class="o">=</span> <span class="p">(</span><span class="nx">size</span> <span class="o">===</span> <span class="s1">&#39;original&#39;</span><span class="p">)</span> <span class="o">?</span>
+      <span class="nx">lib</span><span class="p">.</span><span class="nx">path</span><span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="nx">options</span><span class="p">.</span><span class="nx">src</span><span class="p">,</span> <span class="nx">img</span><span class="p">)</span> <span class="o">:</span>
+      <span class="nx">lib</span><span class="p">.</span><span class="nx">path</span><span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="nx">options</span><span class="p">.</span><span class="nx">src</span><span class="p">,</span> <span class="nx">size</span><span class="p">,</span> <span class="nx">img</span><span class="p">);</span>
+
+    <span class="cm">/* Send 404 message. */</span>
+    <span class="kd">function</span> <span class="nx">err404</span><span class="p">(</span><span class="nx">msg</span><span class="p">)</span> <span class="p">{</span>
+      <span class="kd">var</span> <span class="nx">err</span> <span class="o">=</span> <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="nx">msg</span><span class="p">);</span>
+      <span class="nx">err</span><span class="p">.</span><span class="nx">status</span> <span class="o">=</span> <span class="mi">404</span><span class="p">;</span>
+      <span class="nx">next</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="cm">/* Check size */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="k">typeof</span> <span class="nx">options</span><span class="p">.</span><span class="nx">sizes</span><span class="p">[</span><span class="nx">size</span><span class="p">]</span> <span class="o">===</span> <span class="s1">&#39;undefined&#39;</span> <span class="o">&amp;&amp;</span> <span class="nx">size</span> <span class="o">!==</span> <span class="s1">&#39;original&#39;</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">err404</span><span class="p">(</span><span class="s1">&#39;Invalid image size.&#39;</span><span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="cm">/* Check for existing size */</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">lib</span><span class="p">.</span><span class="nx">fs</span><span class="p">.</span><span class="nx">existsSync</span><span class="p">(</span><span class="nx">path</span><span class="p">))</span> <span class="p">{</span>
+      <span class="nx">deliverImage</span><span class="p">(</span><span class="nx">path</span><span class="p">,</span> <span class="nx">res</span><span class="p">);</span>
+      <span class="k">return</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">else</span> <span class="p">{</span>
+      <span class="nx">options</span><span class="p">.</span><span class="nx">size</span> <span class="o">=</span> <span class="nx">options</span><span class="p">.</span><span class="nx">sizes</span><span class="p">[</span><span class="nx">size</span><span class="p">];</span>
+      <span class="nx">options</span><span class="p">.</span><span class="nx">size</span><span class="p">.</span><span class="nx">name</span> <span class="o">=</span> <span class="nx">size</span><span class="p">;</span>
+      <span class="nx">options</span><span class="p">.</span><span class="nx">path</span> <span class="o">=</span> <span class="nx">path</span><span class="p">;</span>
+      <span class="nx">options</span><span class="p">.</span><span class="nx">img</span> <span class="o">=</span> <span class="nx">img</span><span class="p">;</span>
+      <span class="nx">options</span><span class="p">.</span><span class="nx">org</span> <span class="o">=</span> <span class="nx">org</span><span class="p">;</span>
+      <span class="nx">resizeImage</span><span class="p">(</span><span class="nx">options</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">path</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">deliverImage</span><span class="p">(</span><span class="nx">path</span><span class="p">,</span> <span class="nx">res</span><span class="p">);</span>
+        <span class="k">return</span><span class="p">;</span>
+      <span class="p">});</span>
+    <span class="p">}</span>
+  <span class="p">};</span>
+<span class="p">};</span></pre></div>             </td>           </tr>                               <tr id="section-4">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-4">&#182;</a>               </div>               <h2>Resize image</h2>
+
+<p>Creates a resized derivative of the original image.</p>
+
+<p><strong>parameters</strong></p>
+
+<ul>
+<li><p>options</p>
+
+<p>Just passing along the options from the request handler.</p></li>
+<li><p>callback</p>
+
+<p>Called with any error and the new image's path.</p>
+
+<p>@todo: implement upscale check.</p></li>
+</ul>             </td>             <td class="code">               <div class="highlight"><pre><span class="kd">function</span> <span class="nx">resizeImage</span><span class="p">(</span><span class="nx">options</span><span class="p">,</span> <span class="nx">callback</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">size</span> <span class="o">=</span> <span class="nx">options</span><span class="p">.</span><span class="nx">size</span><span class="p">.</span><span class="nx">width</span> <span class="o">+</span> <span class="s1">&#39;x&#39;</span> <span class="o">+</span> <span class="nx">options</span><span class="p">.</span><span class="nx">size</span><span class="p">.</span><span class="nx">height</span><span class="p">;</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">options</span><span class="p">.</span><span class="nx">size</span><span class="p">.</span><span class="nx">maintainratio</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">size</span> <span class="o">+=</span> <span class="s1">&#39;\\!&#39;</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="kd">var</span> <span class="nx">command</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="nx">options</span><span class="p">.</span><span class="nx">convert</span><span class="p">,</span>
+    <span class="nx">options</span><span class="p">.</span><span class="nx">org</span><span class="p">,</span>
+    <span class="s1">&#39;-adaptive-resize&#39;</span><span class="p">,</span>
+    <span class="nx">options</span><span class="p">.</span><span class="nx">size</span><span class="p">.</span><span class="nx">width</span> <span class="o">+</span> <span class="s1">&#39;x&#39;</span> <span class="o">+</span> <span class="nx">options</span><span class="p">.</span><span class="nx">size</span><span class="p">.</span><span class="nx">height</span><span class="p">,</span>
+    <span class="nx">options</span><span class="p">.</span><span class="nx">path</span>
+    <span class="p">].</span><span class="nx">join</span><span class="p">(</span><span class="s1">&#39; &#39;</span><span class="p">);</span>
+
+  <span class="cm">/* Create folder if we have to. */</span>
+  <span class="kd">var</span> <span class="nx">dest</span> <span class="o">=</span> <span class="nx">lib</span><span class="p">.</span><span class="nx">path</span><span class="p">.</span><span class="nx">join</span><span class="p">(</span><span class="nx">options</span><span class="p">.</span><span class="nx">dest</span><span class="p">,</span> <span class="nx">options</span><span class="p">.</span><span class="nx">size</span><span class="p">.</span><span class="nx">name</span><span class="p">);</span>
+  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">lib</span><span class="p">.</span><span class="nx">fs</span><span class="p">.</span><span class="nx">existsSync</span><span class="p">(</span><span class="nx">dest</span><span class="p">))</span> <span class="p">{</span>
+    <span class="nx">lib</span><span class="p">.</span><span class="nx">fs</span><span class="p">.</span><span class="nx">mkdirSync</span><span class="p">(</span><span class="nx">dest</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="cm">/* Create resize */</span>
+  <span class="nx">lib</span><span class="p">.</span><span class="nx">exec</span><span class="p">(</span><span class="nx">command</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">stdout</span><span class="p">,</span> <span class="nx">stderr</span><span class="p">)</span> <span class="p">{</span>
+    <span class="nx">callback</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">options</span><span class="p">.</span><span class="nx">path</span><span class="p">);</span>
+  <span class="p">});</span>
+<span class="p">}</span></pre></div>             </td>           </tr>                               <tr id="section-5">             <td class="docs">               <div class="pilwrap">                 <a class="pilcrow" href="#section-5">&#182;</a>               </div>               <h2>Deliver image</h2>
+
+<p>Loads the given image and delivers it to the request.</p>
+
+<p><strong>parameters</strong></p>
+
+<ul>
+<li><p>path</p>
+
+<p>Path to the image.</p></li>
+<li><p>res</p>
+
+<p>The response object.</p></li>
+</ul>
+
+<p><strong>returns</strong></p>
+
+<ul>
+<li>void</li>
+</ul>             </td>             <td class="code">               <div class="highlight"><pre><span class="kd">function</span> <span class="nx">deliverImage</span><span class="p">(</span><span class="nx">path</span><span class="p">,</span> <span class="nx">res</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kd">var</span> <span class="nx">stream</span> <span class="o">=</span> <span class="nx">lib</span><span class="p">.</span><span class="nx">fs</span><span class="p">.</span><span class="nx">createReadStream</span><span class="p">(</span><span class="nx">path</span><span class="p">);</span>
+  <span class="cm">/* @todo: set headers &#39;n stuff */</span>
+  <span class="nx">lib</span><span class="p">.</span><span class="nx">util</span><span class="p">.</span><span class="nx">pump</span><span class="p">(</span><span class="nx">stream</span><span class="p">,</span> <span class="nx">res</span><span class="p">,</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="p">{</span>
+      <span class="cm">/* @todo: handle errors. */</span>
+      <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;errors&#39;</span><span class="p">,</span> <span class="nx">err</span><span class="p">);</span>
+    <span class="p">}</span>
+  <span class="p">});</span>
+<span class="p">}</span>
+
+</pre></div>             </td>           </tr>                </tbody>     </table>   </div> </body> </html> 

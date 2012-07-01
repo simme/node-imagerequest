@@ -13,7 +13,7 @@ on demand resizing for you.
 
 To use ImageRequest with for example Express do something like this:
 
-    var ir = require('image-request');
+    var ir = require('imagerequest');
     app.get('photos/:size/:img', ir({
       src: __dirname + '/photos',
     }));
