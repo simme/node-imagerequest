@@ -1,6 +1,6 @@
 {
   "author": "Simon Ljungberg <hi@iamsim.me> (http://iamsim.me)",
-  "name": "ImageRequest",
+  "name": "imagerequest",
   "description": "Image request handler with on demand resizing using ImageMagick.",
   "version": "0.0.1",
   "repository": {
